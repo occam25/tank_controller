@@ -35,7 +35,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define IBUS_DEBUG	1
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -109,13 +109,22 @@ int main(void)
 		  iBus_read_finished_f = 0;
 		  iBusComputeValues();
 
+		  if(iBus_data[4] > 1500)
+			  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+		  else
+			  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+
+#ifdef IBUS_DEBUG
 		  char line[80];
-		  snprintf(line, 80, "0x%02X 0x%02X 0x%02X 0x%02X 0x%02X "
-				  "0x%02X 0x%02X 0x%02X 0x%02X 0x%02X\r\n", iBus_data[0], iBus_data[1], iBus_data[2], iBus_data[3], iBus_data[4],
+//		  snprintf(line, 80, "0x%02X 0x%02X 0x%02X 0x%02X 0x%02X "
+//				  "0x%02X 0x%02X 0x%02X 0x%02X 0x%02X\r\n", iBus_data[0], iBus_data[1], iBus_data[2], iBus_data[3], iBus_data[4],
+//				  iBus_data[5], iBus_data[6], iBus_data[0], iBus_data[8], iBus_data[9]);
+		  snprintf(line, 80, "%4d %4d %4d %4d %4d %4d %4d %4d %4d %4d \r", iBus_data[0], iBus_data[1], iBus_data[2], iBus_data[3], iBus_data[4],
 				  iBus_data[5], iBus_data[6], iBus_data[0], iBus_data[8], iBus_data[9]);
-
 		  debugPrint(&huart2, line);
+#endif
 
+		  // Start new read
 		  iBusReadInit(&huart4);
 	  }
     /* USER CODE END WHILE */
