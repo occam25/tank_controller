@@ -40,7 +40,7 @@ void SERVOS_update_pantilt(uint16_t iBUS_pan, uint16_t iBUS_tilt)
 	tilt = compute_CCR1_value(iBUS_tilt);
 
 	htim_pwm->Instance->CCR1 = pan;
-	htim_pwm->Instance->CCR4 = tilt;
+	htim_pwm->Instance->CCR2 = tilt;
 
 	char line[64];
 	snprintf(line, 64, "PAN: %d TILT:%d\r\n",pan, tilt);
@@ -52,4 +52,5 @@ void SERVOS_Init(TIM_HandleTypeDef *htim)
 {
 	htim_pwm = htim;
 	HAL_TIM_PWM_Start(htim_pwm, TIM_CHANNEL_1);	// init PWM
+	HAL_TIM_PWM_Start(htim_pwm, TIM_CHANNEL_2);	// init PWM
 }
