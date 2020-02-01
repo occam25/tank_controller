@@ -27,6 +27,7 @@
 #include <string.h>
 #include "iBus.h"
 #include "P2927_MC.h"
+#include "servos.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -36,7 +37,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define IBUS_DEBUG	0
+#define IBUS_DEBUG
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -46,6 +47,8 @@
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
+
+TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart4;
 UART_HandleTypeDef huart2;
@@ -60,6 +63,7 @@ static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_UART4_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 void debugPrint(UART_HandleTypeDef *huart, char _out[]);
 /* USER CODE END PFP */
@@ -101,8 +105,30 @@ int main(void)
   MX_USART2_UART_Init();
   MX_UART4_Init();
   MX_I2C1_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
+  SERVOS_Init(&htim2);
+
+//  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);	// init PWM
+
+//  htim2.Instance->CCR1 = 50;
+
+  //+++
+//  int j = 50;
+//  while(1){
+//	  HAL_Delay(100);
+//	  htim2.Instance->CCR1 = j;
+//	  j += 1;
+//
+//	  if(j > 120)
+//		  j = 50;
+
+//	  HAL_Delay(2000);
+//	  htim2.Instance->CCR1 = 75;
+//	  HAL_Delay(2000);
+//	  htim2.Instance->CCR1 = 125;
+//  }
 	if(HAL_OK != HAL_I2C_IsDeviceReady(&hi2c1, (0x60 << 1), 3, 100)){
 		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
 		debugPrint(&huart2, "I2C Device not ready. Aborting\r\n");
@@ -120,6 +146,8 @@ int main(void)
 
   iBusReadInit(&huart4); // starts huart4 reading
   /* USER CODE END 2 */
+ 
+ 
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
@@ -136,14 +164,16 @@ int main(void)
 
 		  P2927_MC_setMotors_RC_values(iBus_data[0], iBus_data[1]);
 
+		  SERVOS_update_pantilt(iBus_data[3], iBus_data[2]);
+
 #ifdef IBUS_DEBUG
-//		  char line[80];
+		  char line[80];
 //		  snprintf(line, 80, "0x%02X 0x%02X 0x%02X 0x%02X 0x%02X "
 //				  "0x%02X 0x%02X 0x%02X 0x%02X 0x%02X\r\n", iBus_data[0], iBus_data[1], iBus_data[2], iBus_data[3], iBus_data[4],
 //				  iBus_data[5], iBus_data[6], iBus_data[0], iBus_data[8], iBus_data[9]);
-//		  snprintf(line, 80, "%4d %4d %4d %4d %4d %4d %4d %4d %4d %4d \r", iBus_data[0], iBus_data[1], iBus_data[2], iBus_data[3], iBus_data[4],
-//				  iBus_data[5], iBus_data[6], iBus_data[0], iBus_data[8], iBus_data[9]);
-//		  debugPrint(&huart2, line);
+		  snprintf(line, 80, "%4d %4d %4d %4d %4d %4d %4d %4d %4d %4d \r\n", iBus_data[0], iBus_data[1], iBus_data[2], iBus_data[3], iBus_data[4],
+				  iBus_data[5], iBus_data[6], iBus_data[0], iBus_data[8], iBus_data[9]);
+		  debugPrint(&huart2, line);
 #endif
 
 		  // Start new read
@@ -255,6 +285,69 @@ static void MX_I2C1_Init(void)
   /* USER CODE BEGIN I2C1_Init 2 */
 
   /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 1600-1;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 1000;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
+  HAL_TIM_MspPostInit(&htim2);
 
 }
 

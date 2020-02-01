@@ -5,6 +5,8 @@
 #include "main.h" //+++
 #include "P2927_MC.h"
 
+//#define DEBUG_MOTOR_VALUES
+
 P2927_MC_STATUS P2927_MC_Init(I2C_HandleTypeDef *hi2c)
 {
 	if(PCA9685_OK != PCA9685_Init(hi2c))
@@ -133,11 +135,12 @@ P2927_MC_STATUS P2927_MC_setMotors_RC_values(uint16_t rc_x, uint16_t rc_y)
 	left_motor_p2927 /= 1000;
 	right_motor_p2927 /= 1000;
 
-
+#ifdef DEBUG_MOTOR_VALUES
 	char line[64];
 	snprintf(line, 64, "X: %d Y:%d -> L: %d R: %d -> L: %d[%c] R: %d[%c]\r\n",x, y, left_motor_value, right_motor_value,
 			(uint16_t)left_motor_p2927, (left_motor_dir) ? 'B':'F', (uint16_t)right_motor_p2927, (right_motor_dir) ? 'B':'F');
 	debugPrint(&huart2, line);
+#endif
 
 	// Set motors
 	return_value += P2927_MC_setMotor(left_motor, left_motor_dir, left_motor_p2927);
