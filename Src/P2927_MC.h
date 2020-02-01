@@ -1,0 +1,62 @@
+
+#ifndef P2927_MC_H_
+#define P2927_MC_H_
+
+#include "pca9685.h"
+
+#define P2927_MC_PWM_MOTOR1		13
+#define P2927_MC_IN1_MOTOR1		11
+#define P2927_MC_IN2_MOTOR1		12
+
+#define P2927_MC_PWM_MOTOR2		 8
+#define P2927_MC_IN1_MOTOR2		10
+#define P2927_MC_IN2_MOTOR2		 9
+
+#define P2927_MC_PWM_MOTOR3		 7
+#define P2927_MC_IN1_MOTOR3		 5
+#define P2927_MC_IN2_MOTOR3		 6
+
+#define P2927_MC_PWM_MOTOR4		 2
+#define P2927_MC_IN1_MOTOR4		 4
+#define P2927_MC_IN2_MOTOR4		 3
+
+typedef enum
+{
+	P2927_MC_OK = 0,
+	P2927_MC_ERROR = 1
+}P2927_MC_STATUS;
+
+typedef enum
+{
+	P2927_MC_FORWARD = 0,
+	P2927_MC_BACKWARD = 1
+}P2927_MC_DIRECTION;
+
+typedef enum
+{
+	P2927_MC_MOTOR1 = 1,
+	P2927_MC_MOTOR2 = 2,
+	P2927_MC_MOTOR3 = 3,
+	P2927_MC_MOTOR4 = 4
+
+}P2927_MC_MOTOR;
+
+
+P2927_MC_STATUS P2927_MC_Init(I2C_HandleTypeDef *hi2c);
+P2927_MC_STATUS P2927_MC_setMotor(P2927_MC_MOTOR motor, P2927_MC_DIRECTION direction, uint16_t speed);
+P2927_MC_STATUS P2927_MC_stopMotor(P2927_MC_MOTOR motor);
+
+P2927_MC_STATUS P2927_MC_setMotors_RC_values(uint16_t rc_x, uint16_t rc_y);
+
+#endif /* P2927_MC_H_ */
+
+
+//  if(PCA9685_OK != PCA9685_SetPin(2, 2000, 0)){
+//	  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+//  }
+//  if(PCA9685_OK != PCA9685_SetPin(3, 4095, 0)){
+//	  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+//  }
+//  if(PCA9685_OK != PCA9685_SetPin(4, 0, 0)){
+//	  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+//  }

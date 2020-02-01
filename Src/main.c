@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "iBus.h"
+#include "P2927_MC.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -35,7 +36,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define IBUS_DEBUG	1
+#define IBUS_DEBUG	0
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -44,6 +45,8 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+I2C_HandleTypeDef hi2c1;
+
 UART_HandleTypeDef huart4;
 UART_HandleTypeDef huart2;
 
@@ -56,6 +59,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_UART4_Init(void);
+static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 void debugPrint(UART_HandleTypeDef *huart, char _out[]);
 /* USER CODE END PFP */
@@ -96,7 +100,23 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_UART4_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
+
+	if(HAL_OK != HAL_I2C_IsDeviceReady(&hi2c1, (0x60 << 1), 3, 100)){
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+		debugPrint(&huart2, "I2C Device not ready. Aborting\r\n");
+		return 1;
+	}
+
+	if(P2927_MC_OK != P2927_MC_Init(&hi2c1)){
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+		debugPrint(&huart2, "Motor controller initialization failed. Aborting\r\n");
+		return 1;
+	}
+
+//	P2927_MC_setMotor(P2927_MC_MOTOR4, P2927_MC_FORWARD, 3000);
+
 
   iBusReadInit(&huart4); // starts huart4 reading
   /* USER CODE END 2 */
@@ -109,19 +129,21 @@ int main(void)
 		  iBus_read_finished_f = 0;
 		  iBusComputeValues();
 
-		  if(iBus_data[4] > 1500)
-			  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
-		  else
-			  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+//		  if(iBus_data[4] > 1500)
+//			  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+//		  else
+//			  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+
+		  P2927_MC_setMotors_RC_values(iBus_data[0], iBus_data[1]);
 
 #ifdef IBUS_DEBUG
-		  char line[80];
+//		  char line[80];
 //		  snprintf(line, 80, "0x%02X 0x%02X 0x%02X 0x%02X 0x%02X "
 //				  "0x%02X 0x%02X 0x%02X 0x%02X 0x%02X\r\n", iBus_data[0], iBus_data[1], iBus_data[2], iBus_data[3], iBus_data[4],
 //				  iBus_data[5], iBus_data[6], iBus_data[0], iBus_data[8], iBus_data[9]);
-		  snprintf(line, 80, "%4d %4d %4d %4d %4d %4d %4d %4d %4d %4d \r", iBus_data[0], iBus_data[1], iBus_data[2], iBus_data[3], iBus_data[4],
-				  iBus_data[5], iBus_data[6], iBus_data[0], iBus_data[8], iBus_data[9]);
-		  debugPrint(&huart2, line);
+//		  snprintf(line, 80, "%4d %4d %4d %4d %4d %4d %4d %4d %4d %4d \r", iBus_data[0], iBus_data[1], iBus_data[2], iBus_data[3], iBus_data[4],
+//				  iBus_data[5], iBus_data[6], iBus_data[0], iBus_data[8], iBus_data[9]);
+//		  debugPrint(&huart2, line);
 #endif
 
 		  // Start new read
@@ -173,9 +195,11 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2|RCC_PERIPHCLK_UART4;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2|RCC_PERIPHCLK_UART4
+                              |RCC_PERIPHCLK_I2C1;
   PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
   PeriphClkInit.Uart4ClockSelection = RCC_UART4CLKSOURCE_PCLK1;
+  PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_PCLK1;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
@@ -186,6 +210,52 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.Timing = 0x10909CEC;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Analogue filter 
+  */
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Digital filter 
+  */
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
 }
 
 /**
