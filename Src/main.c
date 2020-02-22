@@ -49,12 +49,15 @@
 I2C_HandleTypeDef hi2c1;
 
 TIM_HandleTypeDef htim1;
+TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart4;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-
+uint32_t m4_enc1_cnt, m1_enc1_cnt;
+uint32_t m1_enc1_cnt_last, m4_enc1_cnt_last;
+int8_t m1_dir, m4_dir;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -64,6 +67,7 @@ static void MX_USART2_UART_Init(void);
 static void MX_UART4_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_TIM1_Init(void);
+static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 void debugPrint(UART_HandleTypeDef *huart, char _out[]);
 /* USER CODE END PFP */
@@ -106,6 +110,7 @@ int main(void)
   MX_UART4_Init();
   MX_I2C1_Init();
   MX_TIM1_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 
   SERVOS_Init(&htim1);
@@ -151,12 +156,18 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+//  HAL_TIM_Base_Start(&htim3);
+  HAL_TIM_Base_Start_IT(&htim3);
   while (1)
   {
 	  if(iBus_read_finished_f){
 		  iBus_read_finished_f = 0;
 		  iBusComputeValues();
 
+		  if(iBus_data[9] == 2000){
+			  m4_enc1_cnt = 0;
+			  m1_enc1_cnt = 0;
+		  }
 //		  if(iBus_data[4] > 1500)
 //			  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
 //		  else
@@ -171,8 +182,11 @@ int main(void)
 //		  snprintf(line, 80, "0x%02X 0x%02X 0x%02X 0x%02X 0x%02X "
 //				  "0x%02X 0x%02X 0x%02X 0x%02X 0x%02X\r\n", iBus_data[0], iBus_data[1], iBus_data[2], iBus_data[3], iBus_data[4],
 //				  iBus_data[5], iBus_data[6], iBus_data[0], iBus_data[8], iBus_data[9]);
-		  snprintf(line, 80, "%4d %4d %4d %4d %4d %4d %4d %4d %4d %4d \r\n", iBus_data[0], iBus_data[1], iBus_data[2], iBus_data[3], iBus_data[4],
-				  iBus_data[5], iBus_data[6], iBus_data[0], iBus_data[8], iBus_data[9]);
+//		  snprintf(line, 80, "%4d %4d %4d %4d %4d %4d %4d %4d %4d %4d \r\n", iBus_data[0], iBus_data[1], iBus_data[2], iBus_data[3], iBus_data[4],
+//				  iBus_data[5], iBus_data[6], iBus_data[0], iBus_data[8], iBus_data[9]);
+
+
+		  snprintf(line, 80, "M1: %s(%4ld) M4: %s(%4ld)  \r", (m1_dir == 0) ? "STP" : ((m1_dir == 1) ? "FWD" : "BWD"), m1_enc1_cnt, (m4_dir == 0) ? "STP" : ((m4_dir == 1) ? "FWD" : "BWD"), m4_enc1_cnt);
 		  debugPrint(&huart2, line);
 #endif
 
@@ -363,6 +377,51 @@ static void MX_TIM1_Init(void)
 }
 
 /**
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 999;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 10000;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
+
+}
+
+/**
   * @brief UART4 Initialization Function
   * @param None
   * @retval None
@@ -457,6 +516,24 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : M4_ENC2_Pin */
+  GPIO_InitStruct.Pin = M4_ENC2_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(M4_ENC2_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : M4_ENC1_Pin */
+  GPIO_InitStruct.Pin = M4_ENC1_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(M4_ENC1_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : M1_ENC2_Pin */
+  GPIO_InitStruct.Pin = M1_ENC2_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(M1_ENC2_GPIO_Port, &GPIO_InitStruct);
+
   /*Configure GPIO pin : LD2_Pin */
   GPIO_InitStruct.Pin = LD2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -464,12 +541,68 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : M1_ENC1_Pin */
+  GPIO_InitStruct.Pin = M1_ENC1_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(M1_ENC1_GPIO_Port, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI3_IRQn);
+
 }
 
 /* USER CODE BEGIN 4 */
 void debugPrint(UART_HandleTypeDef *huart, char _out[]){
 	HAL_UART_Transmit(huart, (uint8_t *) _out, strlen(_out), 10);
 }
+
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	if(GPIO_Pin == M4_ENC1_Pin){
+		m4_enc1_cnt++;
+		if(HAL_GPIO_ReadPin(GPIOC, M4_ENC2_Pin)){
+			m4_dir = 1;
+		}else{
+			m4_dir = -1;
+		}
+	}else if(GPIO_Pin == M1_ENC1_Pin){
+		m1_enc1_cnt++;
+		if(HAL_GPIO_ReadPin(GPIOA, M1_ENC2_Pin)){
+			m1_dir = 1;
+		}else{
+			m1_dir = -1;
+		}
+	}
+}
+
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	if(m1_enc1_cnt_last == m1_enc1_cnt){
+		m1_dir = 0;
+	}else{
+		m1_enc1_cnt_last = m1_enc1_cnt;
+	}
+
+	if(m4_enc1_cnt_last == m4_enc1_cnt){
+		m4_dir = 0;
+	}else{
+		m4_enc1_cnt_last = m4_enc1_cnt;
+	}
+//	if(m1_dir == 0 && m4_dir == 0){
+//		m1_enc1_cnt = 0;
+//		m1_enc1_cnt_last = 0;
+//		m4_enc1_cnt = 0;
+//		m4_enc1_cnt_last = 0;
+//	}
+}
+
 /* USER CODE END 4 */
 
 /**

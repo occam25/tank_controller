@@ -95,7 +95,7 @@ int16_t rc_value_to_joystick(uint16_t rc_value)
 P2927_MC_STATUS P2927_MC_setMotors_RC_values(uint16_t rc_x, uint16_t rc_y)
 {
 	P2927_MC_STATUS return_value = P2927_MC_OK;
-	P2927_MC_MOTOR left_motor = P2927_MC_MOTOR3;
+	P2927_MC_MOTOR left_motor = P2927_MC_MOTOR1;
 	P2927_MC_MOTOR right_motor = P2927_MC_MOTOR4;
 	P2927_MC_DIRECTION left_motor_dir = P2927_MC_FORWARD;
 	P2927_MC_DIRECTION right_motor_dir = P2927_MC_FORWARD;

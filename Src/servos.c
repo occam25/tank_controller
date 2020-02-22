@@ -42,9 +42,9 @@ void SERVOS_update_pantilt(uint16_t iBUS_pan, uint16_t iBUS_tilt)
 	htim_pwm->Instance->CCR1 = pan;
 	htim_pwm->Instance->CCR2 = tilt;
 
-	char line[64];
-	snprintf(line, 64, "PAN: %d TILT:%d\r\n",pan, tilt);
-	debugPrint(&huart2, line);
+//	char line[64];
+//	snprintf(line, 64, "PAN: %d TILT:%d\r\n",pan, tilt);
+//	debugPrint(&huart2, line);
 
 }
 
