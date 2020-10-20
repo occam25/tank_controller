@@ -50,13 +50,3 @@ P2927_MC_STATUS P2927_MC_setMotors_RC_values(uint16_t rc_x, uint16_t rc_y);
 
 #endif /* P2927_MC_H_ */
 
-
-//  if(PCA9685_OK != PCA9685_SetPin(2, 2000, 0)){
-//	  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-//  }
-//  if(PCA9685_OK != PCA9685_SetPin(3, 4095, 0)){
-//	  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-//  }
-//  if(PCA9685_OK != PCA9685_SetPin(4, 0, 0)){
-//	  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-//  }

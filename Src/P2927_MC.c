@@ -18,10 +18,10 @@ P2927_MC_STATUS P2927_MC_Init(I2C_HandleTypeDef *hi2c)
 P2927_MC_STATUS P2927_MC_setMotor(P2927_MC_MOTOR motor, P2927_MC_DIRECTION direction, uint16_t speed)
 {
 	uint8_t pin_pwm, pin_in1, pin_in2;
-	uint16_t in1_value = 4095;
+	uint16_t top_value = 4095;
 
 	if(speed == 0){
-		in1_value = 0;
+		top_value = 0;
 	}
 
 	if(speed > 4095){
@@ -63,10 +63,10 @@ P2927_MC_STATUS P2927_MC_setMotor(P2927_MC_MOTOR motor, P2927_MC_DIRECTION direc
 	if(PCA9685_OK != PCA9685_SetPin(pin_pwm, speed, 0))
 		return P2927_MC_ERROR;
 
-	if(PCA9685_OK != PCA9685_SetPin(pin_in1, in1_value, 0))
+	if(PCA9685_OK != PCA9685_SetPin(pin_in1, 0, 0))
 		return P2927_MC_ERROR;
 
-	if(PCA9685_OK != PCA9685_SetPin(pin_in2, 0, 0))
+	if(PCA9685_OK != PCA9685_SetPin(pin_in2, top_value, 0))
 		return P2927_MC_ERROR;
 
 	return P2927_MC_OK;
@@ -95,7 +95,7 @@ int16_t rc_value_to_joystick(uint16_t rc_value)
 P2927_MC_STATUS P2927_MC_setMotors_RC_values(uint16_t rc_x, uint16_t rc_y)
 {
 	P2927_MC_STATUS return_value = P2927_MC_OK;
-	P2927_MC_MOTOR left_motor = P2927_MC_MOTOR1;
+	P2927_MC_MOTOR left_motor = P2927_MC_MOTOR3;
 	P2927_MC_MOTOR right_motor = P2927_MC_MOTOR4;
 	P2927_MC_DIRECTION left_motor_dir = P2927_MC_FORWARD;
 	P2927_MC_DIRECTION right_motor_dir = P2927_MC_FORWARD;

@@ -23,11 +23,19 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+
+#include "MPU6050.h"
+#include "fonts.h"
+#include "oled.h"
+#include "gfx.h"
+
 #include "iBus.h"
 #include "P2927_MC.h"
 #include "servos.h"
+#include "telemetry.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -38,6 +46,9 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define IBUS_DEBUG
+// Gear ration 1:130 ;  pulses per rotation: 11
+#define ENCODER_PULSES_PER_ROTATION		130*11
+#define MM_PER_ROTATION					119.38
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -47,17 +58,22 @@
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
+I2C_HandleTypeDef hi2c3;
 
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart4;
 UART_HandleTypeDef huart2;
+UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
 uint32_t m4_enc1_cnt, m1_enc1_cnt;
 uint32_t m1_enc1_cnt_last, m4_enc1_cnt_last;
 int8_t m1_dir, m4_dir;
+
+uint8_t f_send_telemetry;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -67,7 +83,9 @@ static void MX_USART2_UART_Init(void);
 static void MX_UART4_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_TIM1_Init(void);
+static void MX_I2C3_Init(void);
 static void MX_TIM3_Init(void);
+static void MX_USART3_UART_Init(void);
 /* USER CODE BEGIN PFP */
 void debugPrint(UART_HandleTypeDef *huart, char _out[]);
 /* USER CODE END PFP */
@@ -86,7 +104,6 @@ int main(void)
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
-  
 
   /* MCU Configuration--------------------------------------------------------*/
 
@@ -110,10 +127,15 @@ int main(void)
   MX_UART4_Init();
   MX_I2C1_Init();
   MX_TIM1_Init();
+  MX_I2C3_Init();
   MX_TIM3_Init();
+  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
 
   SERVOS_Init(&htim1);
+  MPU6050_Init(&hi2c3);
+  oled_init(&hi2c3);
+  telemetry_init(&huart3, TELEMETRY_SEND_SPEED | TELEMETRY_SEND_ACC | TELEMETRY_SEND_GYRO);
 
 //  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);	// init PWM
 
@@ -151,13 +173,12 @@ int main(void)
 
   iBusReadInit(&huart4); // starts huart4 reading
   /* USER CODE END 2 */
- 
- 
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 //  HAL_TIM_Base_Start(&htim3);
   HAL_TIM_Base_Start_IT(&htim3);
+  char line[80];
   while (1)
   {
 	  if(iBus_read_finished_f){
@@ -192,6 +213,22 @@ int main(void)
 
 		  // Start new read
 		  iBusReadInit(&huart4);
+	  }
+
+	  if(1){
+		  MPU5060_Read_Accel();
+		  MPU6050_Read_Gyro();
+		  memset(line, 0, 80);
+		  snprintf(line, 80, "ACC: %.2f  %.2f  %.2f     ",Ax, Ay, Az);
+		  graphics_text(0,12,0, line);
+		  memset(line, 0, 80);
+		  snprintf(line, 80, "GYR: %.2f  %.2f  %.2f     ",Gx, Gy, Gz);
+		  graphics_text(0,18,0, line);
+		  oled_update();
+	  }
+	  if(f_send_telemetry){
+		  f_send_telemetry = 0;
+		  telemetry_send_data();
 	  }
     /* USER CODE END WHILE */
 
@@ -239,11 +276,14 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2|RCC_PERIPHCLK_UART4
-                              |RCC_PERIPHCLK_I2C1;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2|RCC_PERIPHCLK_USART3
+                              |RCC_PERIPHCLK_UART4|RCC_PERIPHCLK_I2C1
+                              |RCC_PERIPHCLK_I2C3;
   PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
+  PeriphClkInit.Usart3ClockSelection = RCC_USART3CLKSOURCE_PCLK1;
   PeriphClkInit.Uart4ClockSelection = RCC_UART4CLKSOURCE_PCLK1;
   PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_PCLK1;
+  PeriphClkInit.I2c3ClockSelection = RCC_I2C3CLKSOURCE_PCLK1;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
@@ -272,7 +312,7 @@ static void MX_I2C1_Init(void)
 
   /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
-  hi2c1.Init.Timing = 0x10909CEC;
+  hi2c1.Init.Timing = 0x00000E14;
   hi2c1.Init.OwnAddress1 = 0;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
   hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
@@ -299,6 +339,52 @@ static void MX_I2C1_Init(void)
   /* USER CODE BEGIN I2C1_Init 2 */
 
   /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
+  * @brief I2C3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C3_Init(void)
+{
+
+  /* USER CODE BEGIN I2C3_Init 0 */
+
+  /* USER CODE END I2C3_Init 0 */
+
+  /* USER CODE BEGIN I2C3_Init 1 */
+
+  /* USER CODE END I2C3_Init 1 */
+  hi2c3.Instance = I2C3;
+  hi2c3.Init.Timing = 0x10909CEC;
+  hi2c3.Init.OwnAddress1 = 0;
+  hi2c3.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c3.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c3.Init.OwnAddress2 = 0;
+  hi2c3.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c3.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c3.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Analogue filter 
+  */
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c3, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Digital filter 
+  */
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c3, 0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C3_Init 2 */
+
+  /* USER CODE END I2C3_Init 2 */
 
 }
 
@@ -493,6 +579,41 @@ static void MX_USART2_UART_Init(void)
 }
 
 /**
+  * @brief USART3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART3_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART3_Init 0 */
+
+  /* USER CODE END USART3_Init 0 */
+
+  /* USER CODE BEGIN USART3_Init 1 */
+
+  /* USER CODE END USART3_Init 1 */
+  huart3.Instance = USART3;
+  huart3.Init.BaudRate = 115200;
+  huart3.Init.WordLength = UART_WORDLENGTH_8B;
+  huart3.Init.StopBits = UART_STOPBITS_1;
+  huart3.Init.Parity = UART_PARITY_NONE;
+  huart3.Init.Mode = UART_MODE_TX_RX;
+  huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart3.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart3.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  if (HAL_UART_Init(&huart3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART3_Init 2 */
+
+  /* USER CODE END USART3_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -584,6 +705,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
+	static uint8_t cnt = 0;
+	float tmp;
+//	uint32_t ticks;
+
+//	ticks = HAL_GetTick();
+
 	if(m1_enc1_cnt_last == m1_enc1_cnt){
 		m1_dir = 0;
 	}else{
@@ -595,12 +722,32 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	}else{
 		m4_enc1_cnt_last = m4_enc1_cnt;
 	}
-//	if(m1_dir == 0 && m4_dir == 0){
-//		m1_enc1_cnt = 0;
-//		m1_enc1_cnt_last = 0;
-//		m4_enc1_cnt = 0;
-//		m4_enc1_cnt_last = 0;
-//	}
+
+	cnt++;
+	if(cnt >= 8){
+		// Every second
+		cnt = 0;
+		// Enable telemetry sending
+		f_send_telemetry = 1;
+
+		// Compute speed
+		if(m1_dir == m4_dir){
+			tmp = (m1_enc1_cnt + m4_enc1_cnt)/2.0;
+		}else{
+			tmp = abs(m1_enc1_cnt - m4_enc1_cnt)/2.0;
+		}
+
+//		speed = ((m1_enc1_cnt + m4_enc1_cnt)*60)/(2.0 * ENCODER_PULSES_PER_ROTATION);  // I use both motors' pulses average
+		speed = (tmp * MM_PER_ROTATION)/ ENCODER_PULSES_PER_ROTATION; // mm/second
+
+
+		m1_enc1_cnt = 0;
+		m4_enc1_cnt = 0;
+		m1_enc1_cnt_last = 0;
+		m4_enc1_cnt_last = 0;
+
+	}
+
 }
 
 /* USER CODE END 4 */
@@ -625,7 +772,7 @@ void Error_Handler(void)
   * @param  line: assert_param error line source number
   * @retval None
   */
-void assert_failed(char *file, uint32_t line)
+void assert_failed(uint8_t *file, uint32_t line)
 { 
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,
