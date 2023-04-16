@@ -19,7 +19,7 @@
  */
 
 #define	PWM_TIM_CCR1_MAX			125		/* T_ON = 2.5ms */
-#define PWM_TIM_CCR1_MIN			 25 	/* T_OFF = 0.5ms */
+#define PWM_TIM_CCR1_MIN			 25 	/* T_ON = 0.5ms */
 
 /* Calibration values: Max and min values for servos */
 #define TILT_IBUS_MAX				1825

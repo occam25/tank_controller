@@ -13,7 +13,7 @@ static t_state_iBus_read iBus_read_state;
 
 static uint8_t data;
 static uint8_t iBus_buffer[IBUS_BUFFER_SIZE];
-static uint8_t iBus_index;
+//static uint8_t iBus_index;
 
 uint8_t iBus_read_finished_f;
 uint16_t iBus_data[IBUS_NUMBER_OF_CHANNELS];
@@ -100,9 +100,9 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 {
 
-	uint32_t g_uart_sr = huart->Instance->ISR;
-
-	uint32_t g_uart_dr = huart->Instance->RDR;
+//	uint32_t g_uart_sr = huart->Instance->ISR;
+//
+//	uint32_t g_uart_dr = huart->Instance->RDR;
 
 	huart->Instance->ICR |= 0x08;
 

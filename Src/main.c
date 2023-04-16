@@ -33,9 +33,10 @@
 #include "gfx.h"
 
 #include "iBus.h"
-#include "P2927_MC.h"
+//#include "P2927_MC.h"
 #include "servos.h"
 #include "telemetry.h"
+#include "rc_controller.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,7 +46,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define IBUS_DEBUG
+//#define IBUS_DEBUG
 // Gear ration 1:130 ;  pulses per rotation: 11
 #define ENCODER_PULSES_PER_ROTATION		130*11
 #define MM_PER_ROTATION					119.38
@@ -84,8 +85,8 @@ static void MX_UART4_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_I2C3_Init(void);
-static void MX_TIM3_Init(void);
 static void MX_USART3_UART_Init(void);
+static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 void debugPrint(UART_HandleTypeDef *huart, char _out[]);
 /* USER CODE END PFP */
@@ -128,8 +129,8 @@ int main(void)
   MX_I2C1_Init();
   MX_TIM1_Init();
   MX_I2C3_Init();
-  MX_TIM3_Init();
   MX_USART3_UART_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 
   SERVOS_Init(&htim1);
@@ -137,36 +138,20 @@ int main(void)
   oled_init(&hi2c3);
   telemetry_init(&huart3, TELEMETRY_SEND_SPEED | TELEMETRY_SEND_ACC | TELEMETRY_SEND_GYRO);
 
-//  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);	// init PWM
+  rc_controller_init(&htim3);
 
-//  htim2.Instance->CCR1 = 50;
 
-  //+++
-//  int j = 50;
-//  while(1){
-//	  HAL_Delay(100);
-//	  htim2.Instance->CCR1 = j;
-//	  j += 1;
+//	if(HAL_OK != HAL_I2C_IsDeviceReady(&hi2c1, (0x60 << 1), 3, 100)){
+//		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+//		debugPrint(&huart2, "I2C Device not ready. Aborting\r\n");
+//		return 1;
+//	}
 //
-//	  if(j > 120)
-//		  j = 50;
-
-//	  HAL_Delay(2000);
-//	  htim2.Instance->CCR1 = 75;
-//	  HAL_Delay(2000);
-//	  htim2.Instance->CCR1 = 125;
-//  }
-	if(HAL_OK != HAL_I2C_IsDeviceReady(&hi2c1, (0x60 << 1), 3, 100)){
-		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
-		debugPrint(&huart2, "I2C Device not ready. Aborting\r\n");
-		return 1;
-	}
-
-	if(P2927_MC_OK != P2927_MC_Init(&hi2c1)){
-		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
-		debugPrint(&huart2, "Motor controller initialization failed. Aborting\r\n");
-		return 1;
-	}
+//	if(P2927_MC_OK != P2927_MC_Init(&hi2c1)){
+//		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+//		debugPrint(&huart2, "Motor controller initialization failed. Aborting\r\n");
+//		return 1;
+//	}
 
 //	P2927_MC_setMotor(P2927_MC_MOTOR4, P2927_MC_FORWARD, 3000);
 
@@ -177,7 +162,7 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 //  HAL_TIM_Base_Start(&htim3);
-  HAL_TIM_Base_Start_IT(&htim3);
+//  HAL_TIM_Base_Start_IT(&htim3);
   char line[80];
   while (1)
   {
@@ -189,25 +174,26 @@ int main(void)
 			  m4_enc1_cnt = 0;
 			  m1_enc1_cnt = 0;
 		  }
-//		  if(iBus_data[4] > 1500)
-//			  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
-//		  else
-//			  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+		  if(iBus_data[4] > 1500)
+			  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+		  else
+			  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
 
-		  P2927_MC_setMotors_RC_values(iBus_data[0], iBus_data[1]);
+		  rc_controller_setMotors_RC_values(iBus_data[0], iBus_data[1]);
+//		  P2927_MC_setMotors_RC_values(iBus_data[0], iBus_data[1]);
 
 		  SERVOS_update_pantilt(iBus_data[3], iBus_data[2]);
 
 #ifdef IBUS_DEBUG
 		  char line[80];
-//		  snprintf(line, 80, "0x%02X 0x%02X 0x%02X 0x%02X 0x%02X "
-//				  "0x%02X 0x%02X 0x%02X 0x%02X 0x%02X\r\n", iBus_data[0], iBus_data[1], iBus_data[2], iBus_data[3], iBus_data[4],
-//				  iBus_data[5], iBus_data[6], iBus_data[0], iBus_data[8], iBus_data[9]);
-//		  snprintf(line, 80, "%4d %4d %4d %4d %4d %4d %4d %4d %4d %4d \r\n", iBus_data[0], iBus_data[1], iBus_data[2], iBus_data[3], iBus_data[4],
-//				  iBus_data[5], iBus_data[6], iBus_data[0], iBus_data[8], iBus_data[9]);
+		  snprintf(line, 80, "0x%02X 0x%02X 0x%02X 0x%02X 0x%02X "
+				  "0x%02X 0x%02X 0x%02X 0x%02X 0x%02X\r\n", iBus_data[0], iBus_data[1], iBus_data[2], iBus_data[3], iBus_data[4],
+				  iBus_data[5], iBus_data[6], iBus_data[0], iBus_data[8], iBus_data[9]);
+		  snprintf(line, 80, "%4d %4d %4d %4d %4d %4d %4d %4d %4d %4d \r\n", iBus_data[0], iBus_data[1], iBus_data[2], iBus_data[3], iBus_data[4],
+				  iBus_data[5], iBus_data[6], iBus_data[0], iBus_data[8], iBus_data[9]);
 
 
-		  snprintf(line, 80, "M1: %s(%4ld) M4: %s(%4ld)  \r", (m1_dir == 0) ? "STP" : ((m1_dir == 1) ? "FWD" : "BWD"), m1_enc1_cnt, (m4_dir == 0) ? "STP" : ((m4_dir == 1) ? "FWD" : "BWD"), m4_enc1_cnt);
+//		  snprintf(line, 80, "M1: %s(%4ld) M4: %s(%4ld)  \r", (m1_dir == 0) ? "STP" : ((m1_dir == 1) ? "FWD" : "BWD"), m1_enc1_cnt, (m4_dir == 0) ? "STP" : ((m4_dir == 1) ? "FWD" : "BWD"), m4_enc1_cnt);
 		  debugPrint(&huart2, line);
 #endif
 
@@ -312,7 +298,7 @@ static void MX_I2C1_Init(void)
 
   /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
-  hi2c1.Init.Timing = 0x00000E14;
+  hi2c1.Init.Timing = 0x10909CEC;
   hi2c1.Init.OwnAddress1 = 0;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
   hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
@@ -474,24 +460,19 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 0 */
 
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
 
   /* USER CODE BEGIN TIM3_Init 1 */
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 999;
+  htim3.Init.Prescaler = 1599;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 10000;
+  htim3.Init.Period = 4999;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
+  if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
   {
     Error_Handler();
   }
@@ -501,9 +482,22 @@ static void MX_TIM3_Init(void)
   {
     Error_Handler();
   }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
   /* USER CODE BEGIN TIM3_Init 2 */
 
   /* USER CODE END TIM3_Init 2 */
+  HAL_TIM_MspPostInit(&htim3);
 
 }
 
@@ -629,7 +623,10 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, LD2_Pin|LM_OUT2_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, LM_OUT1_Pin|RM_OUT2_Pin|RM_OUT1_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
@@ -655,18 +652,25 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(M1_ENC2_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : LD2_Pin */
-  GPIO_InitStruct.Pin = LD2_Pin;
+  /*Configure GPIO pins : LD2_Pin LM_OUT2_Pin */
+  GPIO_InitStruct.Pin = LD2_Pin|LM_OUT2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pin : M1_ENC1_Pin */
   GPIO_InitStruct.Pin = M1_ENC1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(M1_ENC1_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : LM_OUT1_Pin RM_OUT2_Pin RM_OUT1_Pin */
+  GPIO_InitStruct.Pin = LM_OUT1_Pin|RM_OUT2_Pin|RM_OUT1_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
